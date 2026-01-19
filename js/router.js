@@ -1,100 +1,141 @@
 class Router {
     constructor() {
         this.currentGroup = null;
-        this.init();
     }
 
     init() {
-        // Sahifa yuklanganda
         window.addEventListener('load', () => {
             this.handleRoute();
         });
 
-        // URL o'zgarganda
         window.addEventListener('hashchange', () => {
             this.handleRoute();
         });
     }
 
     handleRoute() {
-        // URL dan guruh nomini olish
-        const hash = window.location.hash; // #@guruh_nomi
+        const hash = window.location.hash;
         
         if (hash.startsWith('#@')) {
-            const groupName = hash.replace('#@', '');
-            this.loadGroup(groupName);
+            const groupUsername = hash.replace('#@', '');
+            this.loadGroup(groupUsername);
         } else {
-            // Agar guruh tanlanmagan bo'lsa
             this.showWelcomeScreen();
         }
     }
 
-    loadGroup(groupName) {
-        this.currentGroup = groupName;
+    loadGroup(groupUsername) {
+        if (!db) {
+            console.error('DB mavjud emas');
+            return;
+        }
+
+        this.currentGroup = groupUsername;
         
-        // Guruh ma'lumotlarini yuklash
-        db.collection('groups').doc(groupName).get()
+        db.collection('groups').doc(groupUsername).get()
             .then(doc => {
                 if (doc.exists) {
                     const groupData = doc.data();
-                    this.displayGroup(groupData);
-                    this.loadMessages(groupName);
+                    this.displayGroup(groupData, groupUsername);
+                    this.loadMessages(groupUsername);
                 } else {
-                    console.log('Guruh topilmadi');
+                    showToast('Guruh topilmadi!', 'error');
+                    this.showWelcomeScreen();
                 }
+            })
+            .catch(error => {
+                console.error('Xato:', error);
+                showToast('Guruhni yuklashda xatolik!', 'error');
             });
     }
 
-    displayGroup(groupData) {
-        const chatHeader = document.getElementById('chatHeader');
-        chatHeader.innerHTML = `
-            <img src="${groupData.photo}" alt="${groupData.name}">
-            <div>
-                <h2>${groupData.name}</h2>
-                <p>${groupData.members} ta a'zo</p>
-            </div>
-        `;
+    displayGroup(groupData, username) {
+        document.getElementById('welcomeScreen').style.display = 'none';
+        document.getElementById('chatHeader').style.display = 'flex';
+        document.getElementById('inputArea').style.display = 'flex';
+        
+        document.getElementById('groupPhoto').src = groupData.photo || 'https://via.placeholder.com/40';
+        document.getElementById('groupName').textContent = groupData.name;
+        document.getElementById('groupMembers').textContent = `${groupData.members || 0} ta a'zo`;
+        document.getElementById('shareBtn').dataset.username = username;
     }
 
-    loadMessages(groupName) {
-        const messagesContainer = document.getElementById('messagesContainer');
-        messagesContainer.innerHTML = ''; // Tozalash
+    loadMessages(groupUsername) {
+        if (!db) {
+            console.error('DB mavjud emas');
+            return;
+        }
 
-        // Real-time xabarlarni tinglash
-        db.collection('groups').doc(groupName)
+        const messagesContainer = document.getElementById('messagesContainer');
+        messagesContainer.innerHTML = '<div class="loading">Yuklanmoqda...</div>';
+
+        db.collection('groups').doc(groupUsername)
           .collection('messages')
           .orderBy('timestamp', 'asc')
+          .limit(100)
           .onSnapshot(snapshot => {
-              snapshot.docChanges().forEach(change => {
-                  if (change.type === 'added') {
-                      const msg = change.doc.data();
-                      this.addMessageToUI(msg);
-                  }
+              messagesContainer.innerHTML = '';
+              
+              if (snapshot.empty) {
+                  messagesContainer.innerHTML = '<div class="no-messages">Xabarlar yo\'q. Birinchi bo\'lib yozing!</div>';
+                  return;
+              }
+              
+              snapshot.forEach(doc => {
+                  const msg = doc.data();
+                  this.addMessageToUI(msg);
               });
+              
+              messagesContainer.scrollTop = messagesContainer.scrollHeight;
           });
     }
 
     addMessageToUI(message) {
         const messagesContainer = document.getElementById('messagesContainer');
         const msgDiv = document.createElement('div');
-        msgDiv.className = 'message';
+        
+        // O'z xabarimmi yoki boshqaniki?
+        const isMyMessage = userSession && message.senderId === userSession.getUserId();
+        msgDiv.className = isMyMessage ? 'message my-message' : 'message';
+        
+        const time = message.timestamp ? new Date(message.timestamp).toLocaleTimeString('uz-UZ', {
+            hour: '2-digit',
+            minute: '2-digit'
+        }) : '';
+        
+        const avatar = message.senderAvatar || 'https://via.placeholder.com/30';
+        
         msgDiv.innerHTML = `
-            <div class="message-sender">${message.sender}</div>
-            <div class="message-text">${message.text}</div>
-            <div class="message-time">${new Date(message.timestamp).toLocaleTimeString()}</div>
+            ${!isMyMessage ? `<img class="message-avatar" src="${avatar}" alt="${message.sender}">` : ''}
+            <div class="message-content">
+                ${!isMyMessage ? `<div class="message-sender">${message.sender || 'Anonim'}</div>` : ''}
+                <div class="message-text">${this.escapeHtml(message.text)}</div>
+                <div class="message-time">${time}</div>
+            </div>
         `;
+        
         messagesContainer.appendChild(msgDiv);
-        messagesContainer.scrollTop = messagesContainer.scrollHeight;
+    }
+
+    escapeHtml(text) {
+        const div = document.createElement('div');
+        div.textContent = text;
+        return div.innerHTML;
     }
 
     showWelcomeScreen() {
-        document.getElementById('chatArea').innerHTML = `
-            <div class="welcome">
-                <h1>Guruh tanlang</h1>
-            </div>
-        `;
+        this.currentGroup = null;
+        document.getElementById('welcomeScreen').style.display = 'flex';
+        document.getElementById('chatHeader').style.display = 'none';
+        document.getElementById('inputArea').style.display = 'none';
+        document.getElementById('messagesContainer').innerHTML = '';
     }
 }
 
-// Router yaratish
-const router = new Router();
+// Router yaratish va initsializatsiya
+let router = null;
+
+document.addEventListener('DOMContentLoaded', () => {
+    router = new Router();
+    router.init();
+});

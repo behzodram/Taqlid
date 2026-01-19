@@ -10,6 +10,29 @@ const firebaseConfig = {
     measurementId: "G-9F13QLPTD1"
 };
 
-// Initialize
-firebase.initializeApp(firebaseConfig);
-const db = firebase.firestore();
+
+// Global o'zgaruvchilar
+let db = null;
+let storage = null;
+
+// Initialize Firebase
+try {
+    firebase.initializeApp(firebaseConfig);
+    db = firebase.firestore();
+    storage = firebase.storage();
+    
+    // Offline qo'llab-quvvatlash
+    db.enablePersistence()
+        .catch((err) => {
+            if (err.code == 'failed-precondition') {
+                console.log('Ko\'p tab ochiq');
+            } else if (err.code == 'unimplemented') {
+                console.log('Brauzer qo\'llab-quvvatlamaydi');
+            }
+        });
+    
+    console.log('✓ Firebase ulandi');
+} catch (error) {
+    console.error('✗ Firebase xato:', error);
+    alert('Firebase ulanishida xatolik! Console ni tekshiring.');
+}

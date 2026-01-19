@@ -3,16 +3,28 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Telegram Clone</title>
+    <title>Taqlidgram</title>
     <link rel="stylesheet" href="css/style.css">
 </head>
 <body>
     <div class="container">
         <!-- Chap sidebar - Guruhlar ro'yxati -->
         <aside class="sidebar" id="sidebar">
-            <div class="search-box">
-                <input type="text" placeholder="Qidirish...">
+            <div class="sidebar-header">
+                <div class="user-info" id="userInfo">
+                    <img id="userAvatar" src="https://via.placeholder.com/40" alt="User">
+                    <div>
+                        <h3 id="userName">Mehmon</h3>
+                        <p id="userStatus">Offline</p>
+                    </div>
+                </div>
+                <button id="addGroupBtn" class="add-group-btn" title="Guruh qo'shish">+</button>
             </div>
+            
+            <div class="search-box">
+                <input type="text" id="searchInput" placeholder="Qidirish...">
+            </div>
+            
             <div class="groups-list" id="groupsList">
                 <!-- Guruhlar bu yerga yuklanadi -->
             </div>
@@ -20,28 +32,153 @@
 
         <!-- O'ng qism - Chat -->
         <main class="chat-area" id="chatArea">
-            <div class="chat-header" id="chatHeader">
-                <!-- Guruh nomi va rasmi -->
+            <div class="chat-header" id="chatHeader" style="display: none;">
+                <div class="header-left">
+                    <img id="groupPhoto" src="" alt="">
+                    <div>
+                        <h2 id="groupName"></h2>
+                        <p id="groupMembers"></p>
+                    </div>
+                </div>
+                <div class="header-right">
+                    <button id="shareBtn" class="share-btn" title="Havolani nusxalash">📋 Havola</button>
+                    <button id="groupInfoBtn" class="info-btn" title="Guruh haqida">ℹ️</button>
+                </div>
             </div>
             
             <div class="messages-container" id="messagesContainer">
                 <!-- Xabarlar bu yerga -->
             </div>
             
-            <div class="input-area">
+            <div class="input-area" id="inputArea" style="display: none;">
                 <input type="text" id="messageInput" placeholder="Xabar yozing...">
-                <button id="sendBtn">Yuborish</button>
+                <button id="sendBtn">📤</button>
+            </div>
+
+            <!-- Welcome screen -->
+            <div class="welcome-screen" id="welcomeScreen">
+                <h1>Taqlidgram</h1>
+                <p>Guruh tanlang yoki yangi guruh yarating</p>
             </div>
         </main>
     </div>
 
-    <!-- Firebase -->
+    <!-- Guruh qo'shish modali -->
+    <div id="addGroupModal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Yangi guruh yaratish</h2>
+            
+            <form id="addGroupForm">
+                <div class="form-group">
+                    <label>Guruh nomi:</label>
+                    <input type="text" id="groupNameInput" required placeholder="Masalan: Uzum Tezkor">
+                </div>
+                
+                <div class="form-group">
+                    <label>Ommaviy nom (username):</label>
+                    <div class="username-input">
+                        <span>@</span>
+                        <input type="text" id="groupUsernameInput" required 
+                               placeholder="uzumtezkor_kuryerlari" 
+                               pattern="[a-z0-9_]+"
+                               title="Faqat kichik harflar, raqamlar va _ belgisi">
+                    </div>
+                    <small>Faqat kichik harflar, raqamlar va pastki chiziq (_)</small>
+                </div>
+                
+                <div class="form-group">
+                    <label>Guruh rasmi:</label>
+                    <div class="photo-upload">
+                        <img id="groupPhotoPreview" src="https://via.placeholder.com/100" alt="Preview">
+                        <div class="upload-controls">
+                            <input type="file" id="groupPhotoFile" accept="image/*" style="display: none;">
+                            <button type="button" id="selectPhotoBtn" class="select-photo-btn">
+                                📷 Rasm tanlash
+                            </button>
+                            <small id="photoFileName"></small>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ta'rif:</label>
+                    <textarea id="groupDescInput" rows="3" 
+                              placeholder="Guruh haqida qisqacha..."></textarea>
+                </div>
+                
+                <button type="submit" class="submit-btn">Guruh yaratish</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Guruh ma'lumoti modali -->
+    <div id="groupInfoModal" class="modal">
+        <div class="modal-content">
+            <span class="close-info">&times;</span>
+            <div id="groupInfoContent">
+                <!-- Guruh ma'lumotlari -->
+            </div>
+        </div>
+    </div>
+
+    <!-- User profil modali -->
+    <div id="userProfileModal" class="modal">
+        <div class="modal-content">
+            <span class="close-profile">&times;</span>
+            <h2>Profil sozlamalari</h2>
+            
+            <form id="userProfileForm">
+                <div class="form-group">
+                    <label>Avatar:</label>
+                    <div class="photo-upload">
+                        <img id="userAvatarPreview" src="https://via.placeholder.com/100" alt="Avatar">
+                        <div class="upload-controls">
+                            <input type="file" id="userAvatarFile" accept="image/*" style="display: none;">
+                            <button type="button" id="selectAvatarBtn" class="select-photo-btn">
+                                📷 Avatar tanlash
+                            </button>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label>Ismingiz:</label>
+                    <input type="text" id="userNameInput" required placeholder="Ismingiz">
+                </div>
+                
+                <button type="submit" class="submit-btn">Saqlash</button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Toast xabarnoma -->
+    <div id="toast" class="toast"></div>
+
+    <!-- Loading overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p>Yuklanmoqda...</p>
+    </div>
+
+    <!-- Firebase - BIRINCHI -->
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-storage-compat.js"></script>
     
-    <!-- Sizning skriptlaringiz -->
+    <!-- Firebase Config - IKKINCHI -->
     <script src="js/firebase-config.js"></script>
+    
+    <!-- Utility funksiyalar - UCHINCHI -->
+    <script src="js/utils.js"></script>
+    
+    <!-- Auth - TO'RTINCHI -->
+    <script src="js/auth.js"></script>
+    
+    <!-- Router - BESHINCHI -->
     <script src="js/router.js"></script>
+    
+    <!-- App - OXIRGI -->
     <script src="js/app.js"></script>
 </body>
 </html>
